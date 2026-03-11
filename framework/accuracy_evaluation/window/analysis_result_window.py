@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from ui.image import OpenCVImage
 from ui.event_timeline import OpenCVEventTimeline
+from ui.dict_view import OpenCVDictView
 
 WINDOW_NAME = 'Analysis Result'
 WINDOW_WIDTH = 1000
@@ -11,6 +12,7 @@ class AnalysisResultWindow:
   window = None
   video_image = None
   analysis_result_image = None
+  result_view = None
   timeline = None
   video = None
   start_time_ms = 0
@@ -23,7 +25,9 @@ class AnalysisResultWindow:
     self.video_image = OpenCVImage()
     self.video_image.set_position((0, 0), (600, 480))    
     self.analysis_result_image = OpenCVImage()
-    self.analysis_result_image.set_position((620, 180), (360, 240))
+    self.analysis_result_image.set_position((620, 20), (360, 240))
+    self.result_view = OpenCVDictView()
+    self.result_view.set_position((620, 280), (360, 300))
     self.timeline.set_position((0, 480), (600, 120))
     self.timeline.set_time_changed_callback(self.time_changed_callback)
     self.timeline.set_event_markers_selected_callback(self.event_marker_selected_callback)
@@ -63,6 +67,7 @@ class AnalysisResultWindow:
     self.timeline.draw(self.window)
     self.video_image.draw(self.window)
     self.analysis_result_image.draw(self.window)
+    self.result_view.draw(self.window)
     cv2.imshow(WINDOW_NAME, self.window)
 
   def show(self):
@@ -74,6 +79,7 @@ class AnalysisResultWindow:
 
   def handle_mouse_event(self, event, x, y, flags, param):
     self.timeline.handle_mouse_event(event, x, y, flags, param)
+    self.result_view.handle_mouse_event(event, x, y, flags, param)
 
   def time_changed_callback(self, event, time):
     if self.video is None:
@@ -90,6 +96,7 @@ class AnalysisResultWindow:
       time_ms = item["time_ms"]
       bboxes = item["bboxes"]
       if time_ms == marker_id:
+        self.result_view.set_data(item)        
         frame_number = (self.start_time_ms + time_ms) / 1000 * self.video.get(cv2.CAP_PROP_FPS)
         self.video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
         ret, frame = self.video.read()
