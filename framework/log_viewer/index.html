@@ -1,0 +1,220 @@
+<html>
+
+<script src="./LogTimeline.js"></script>
+<script>
+
+const FUNC_NAME_TO_COLOR = {
+  'server': 'lightblue',
+  'AnalyzeStream': 'lightblue',
+  'decode': 'lightgreen',
+  'analyze': 'lightpink',
+  'client': 'lightyellow',
+  'request': 'lightgreen',
+}
+
+logTimeline = null
+serverTimelineData = []
+clientTimelineData = []
+
+function init() {
+  logTimeline = new LogTimeline() 
+  logTimeline.setParent(document.getElementById('log-timeline-canvas')) 
+  logTimeline.setTimelines([{  
+    label: '',
+    labelColor: 'white',
+    backgroundColor: 'white',
+    data: []
+  }])
+}
+
+function handleFileSelect(event, type) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = function(e) {
+    const text = e.target.result
+    if (type === 'server') {
+      const timelineData = formatServerLogData(text)
+      const startTime = timelineData.flatMap(t => t.data.map(d => dateTimeToDate(d.start).getTime())).sort((a, b) => a - b)[0]
+      const startDateTime = timeMsToDateTime(startTime)
+      const endTime = timelineData.flatMap(t => t.data.map(d => dateTimeToDate(d.end).getTime())).sort((a, b) => b - a)[0]
+      const endDateTime = timeMsToDateTime(endTime)
+      logTimeline.setTimeRange(startDateTime, endDateTime)
+      serverTimelineData = timelineData
+    } else if (type === 'client') {
+      const timelineData = formatClientLogData(text)
+      clientTimelineData = [...clientTimelineData, timelineData]
+    }
+    logTimeline.setTimelines([...serverTimelineData, ...clientTimelineData])
+  }
+  reader.readAsText(file)
+}
+
+function formatServerLogData(logData) {
+  const serverTimeLine = {
+    label: 'server',
+    labelColor: 'black',
+    data: []
+  }
+  const analyzerTimeLines = []
+
+  const lines = logData.split('\n')
+  for (const line of lines) {
+    if (line === null) continue
+    const log = line.split(',')
+    if (log.length < 7) continue
+    const id = log[0]
+    const funcName = log[1]
+    const startTime = log[2]
+    const endTime = log[3]
+    const duration = log[4]
+    const startMemo = log[5]
+    const endMemo = log[6]
+    // console.log(id, funcName, startTime, endTime, duration, startMemo, endMemo)
+    if (id === 'id') continue
+
+    if (funcName === 'server') {
+      serverTimeLine.data.push({
+        start: strToDateTime(startTime),
+        end: strToDateTime(endTime),
+        color: funcToColor(funcName),
+        comment: `${funcName} ${durataionStrToMs(duration)}ms`
+      })
+    } else {
+      let timeLine = analyzerTimeLines.find(t => t.key === startMemo)
+      if (!timeLine) {
+        timeLine = {
+          key: startMemo,
+          label: startMemo,
+          labelColor: 'black',
+          data: []
+        }
+        analyzerTimeLines.push(timeLine)
+      }
+      timeLine.data.push({
+        start: strToDateTime(startTime),
+        end: strToDateTime(endTime),
+        color: funcToColor(funcName),
+        comment: `${funcName} ${durataionStrToMs(duration)}ms`
+      })
+    }
+  }
+
+  return [serverTimeLine, ...analyzerTimeLines]
+}
+
+function formatClientLogData(logData) {
+  const clientTimeLine = {
+    label: 'client_' + (clientTimelineData.length + 1),
+    labelColor: 'black',
+    data: []
+  }
+
+  const lines = logData.split('\n')
+  for (const line of lines) {
+    if (line === null) continue
+    const log = line.split(',')
+    if (log.length < 7) continue
+    const id = log[0]
+    const funcName = log[1]
+    const startTime = log[2]
+    const endTime = log[3]
+    const duration = log[4]
+    const startMemo = log[5]
+    const endMemo = log[6]
+    // console.log(id, funcName, startTime, endTime, duration, startMemo, endMemo)
+    if (id === 'id') continue
+    clientTimeLine.data.push({
+      start: strToDateTime(startTime),
+      end: strToDateTime(endTime),
+      color: funcToColor(funcName),
+      comment: `${funcName} ${durataionStrToMs(duration)}ms`
+    })
+  }
+
+  return clientTimeLine
+}
+
+function strToDateTime(dateTimeStr) {
+  const date = new Date(dateTimeStr)
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+    second: date.getSeconds(),
+    millisecond: date.getMilliseconds()
+  }
+}
+
+function dateTimeToDate(dateTime) {
+  const date = new Date(Date.UTC(
+    dateTime.year,
+    dateTime.month - 1,
+    dateTime.day,
+    dateTime.hour,
+    dateTime.minute,
+    dateTime.second,
+    dateTime.millisecond
+  ))
+  return date
+}
+
+function timeMsToDateTime(timeMs) {
+  const date = new Date(timeMs)
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+    hour: date.getUTCHours(),
+    minute: date.getUTCMinutes(),
+    second: date.getUTCSeconds(),
+    millisecond: date.getUTCMilliseconds()
+  }
+}
+
+function durataionStrToMs(duration) {
+  const hms = duration.split('.')[0]
+  const us = duration.split('.')[1] || '0'
+  const [h, m, s] = hms.split(':').map(str => parseInt(str))
+  return ((h * 60 + m) * 60 + s) * 1000 + parseInt(us) / 1000
+}
+
+function funcToColor(funcName) {
+  if (FUNC_NAME_TO_COLOR[funcName]) {
+    return FUNC_NAME_TO_COLOR[funcName]
+  } else {
+    return 'lightgray'
+  }
+}
+</script>
+
+<style>
+body {
+  margin: 0;
+  padding: 1rem;
+  background-color: aliceblue;
+}
+
+#log-file-input {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+
+}
+</style>
+
+<body onload="init()">
+  <div id="log-file-input">
+    <div>
+      Server Log : <input type="file" onchange="handleFileSelect(event, 'server')">
+    </div>
+    <div>
+      Client Log : <input type="file" onchange="handleFileSelect(event, 'client')">
+    </div>
+  </div>
+  <div id="log-timeline-canvas"></div>
+</body> 
+</html>

@@ -9,6 +9,11 @@
 下記の依存パッケージをダウンロードする。
 - opencv-python 
 - ultralytics
+- numpy
+- av
+- click
+- grpc
+
 ``` bash
 uv sync
 ```
@@ -17,4 +22,16 @@ uv sync
 
 ``` bash
 uv run python framework/accuracy_evaluation/main.py
+```
+
+# パフォーマンス評価
+
+サーバー
+``` bash
+uv run python framework/performance_evaluation/server.py
+```
+
+クライアント
+``` bash
+uv run python framework/performance_evaluation/client.py
 ```

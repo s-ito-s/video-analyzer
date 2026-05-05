@@ -1,8 +1,5 @@
 from ultralytics import YOLO
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from framework.util.RectTracker import RectTracker
+from util.RectTracker import RectTracker
 
 class StreamAnalyzer:
   model = None
