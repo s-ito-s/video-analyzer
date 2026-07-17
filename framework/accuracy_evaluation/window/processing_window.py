@@ -74,11 +74,12 @@ class ProcessingWindow:
       self.video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
       ret, frame = self.video.read()
       if ret:
-        bboxes = self.stream_analyzer.analyze(frame, time_ms - self.start_time_ms)
-        if len(bboxes) > 0:
+        self.stream_analyzer.analyze(frame, time_ms - self.start_time_ms)
+        event = self.stream_analyzer.pop_event()
+        if event:
           self.result.append({
-            'time_ms': time_ms - self.start_time_ms,
-            'bboxes': bboxes,
+            'time_ms': event['time_ms'],
+            'data': event['data'],
           })
       time_ms += self.analysis_interval
       progress = int(((time_ms - self.start_time_ms) / duration_ms) * 100)

@@ -1,0 +1,260 @@
+<html>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#file-ipnut-view {
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  z-index: 1;
+  gap: 20px;
+}
+
+.file-input-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.file-selector{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.file-label{
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.file-name{
+  font-size: 12px;
+  width: 280px;
+  padding: 10px 15px;
+  background-color: white;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.file-name:hover{
+  cursor: pointer;
+  border-color: #09a;
+}
+
+#load-button {
+  margin-top: 10px;
+}
+
+.button{
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  padding: 10px 15px;
+  background-color: #09a;
+  border-radius: 5px;
+  border: none;
+}
+
+.button:hover{
+  cursor: pointer;
+  background-color: #0bc;
+}
+
+.file-input{
+  display: none;
+}
+
+#video-view {
+  width: 100vw;
+  height: 100vh;
+}
+
+#video {
+  background-color: black;
+  width: 100vw;
+  height: calc(100vh - 92px);
+}
+
+#event-timeline-canvas {
+  width: 100vw;
+  height: 92px;
+}
+
+#selected-event-details {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 200px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid #ccc;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  display: flex;
+  font-size: 12px;
+  word-break: break-all;
+}
+</style>
+
+<script src="EventTimeline.js"></script>
+
+<script>
+let eventTimeline = null
+let videoTimerId = null
+let videoFile = null
+let eventFile = null
+let selectedEvent = null
+
+const init = () => {
+  // Initialize EventTimeline
+  const dom = document.getElementById('event-timeline-canvas')
+  eventTimeline = new EventTimeline(dom)
+  eventTimeline.setCurrentTime(0)
+  eventTimeline.onTimeChange = (timeMs) => {
+    const video = document.getElementById('video');
+    video.currentTime = timeMs / 1000
+  }
+  eventTimeline.onClickEventMarker = (timelineName, event) => {
+    console.log(event.label)
+    eventTimeline.selectEventMarker(event.id)
+    const selectedEventDetails = document.getElementById('selected-event-details');
+    selectedEventDetails.textContent = `${event.label}`;
+  }
+
+  // Video file input
+  const videoFileInput = document.getElementById('video-file-input');
+  const videoSelectButton = document.getElementById("video-select-button");
+  videoSelectButton.addEventListener('click', (e) => {
+    videoFileInput.click()
+  });
+  videoFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    videoFile = file;
+    videoSelectButton.textContent = file.name;
+  });
+
+  // Event file input
+  const eventFileInput = document.getElementById('event-file-input');
+  const eventFileSelectButton = document.getElementById("event-select-button");
+  eventFileSelectButton.addEventListener('click', (e) => {
+    eventFileInput.click()
+  });
+  eventFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    eventFile = file;
+    eventFileSelectButton.textContent = file.name;
+  });
+
+  // Load button
+  const loadButton = document.getElementById('load-button');
+  loadButton.addEventListener('click', async (e) => {
+    if (videoFile && eventFile) {
+      await loadVideo(videoFile);
+      await loadEvent(eventFile);
+      document.getElementById('file-ipnut-view').style.display = 'none';
+    } else {
+      alert('Please select both video file and event file.');
+    }
+  });
+}
+
+const loadVideo = async (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const blob = new Blob([e.target.result], {type: file.type});
+      const url = URL.createObjectURL(blob);
+      const video = document.getElementById('video');
+      video.onloadedmetadata = () => {
+        eventTimeline.setDuration(video.duration * 1000);
+        resolve();
+      };
+      video.onplay = () => {
+        play();
+      };
+      video.onpause = () => {
+        if (videoTimerId !== null) {
+          cancelAnimationFrame(videoTimerId);
+          videoTimerId = null;
+        }
+      };
+      video.onseeked = () => {
+        eventTimeline.setCurrentTime(video.currentTime * 1000);
+      };
+      video.src = url;
+    };
+    reader.readAsArrayBuffer(file);
+  })
+}
+
+const loadEvent = async (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const data = JSON.parse(e.target.result);
+      const events = data.map(item => ({
+        id: 'event-' + Math.random().toString(36).substr(2, 9),
+        label: JSON.stringify(item.data),
+        timeMs: item.time_ms,
+        color: "#0bc",
+      }));
+      eventTimeline.setEventTimelines([{
+        name: 'Events',
+        eventMarkers: events,
+      }]);
+      resolve();
+    };
+    reader.readAsText(file);
+  })
+}
+
+const play = () => {
+  const video = document.getElementById('video');
+
+  const step = () => {
+    eventTimeline.setCurrentTime(video.currentTime * 1000)
+    videoTimerId = requestAnimationFrame(step);
+  }
+
+  if (videoTimerId === null) {
+    videoTimerId = requestAnimationFrame(step);
+  }
+
+  video.play();
+}
+</script>
+
+<body onload="init()">
+  <div id="file-ipnut-view">
+    <div class="file-input-panel">
+      <div class="file-selector">
+        <div class="file-label">Video File</div>
+        <div id="video-select-button" class="file-name">-</div>
+        <input id="video-file-input" class="file-input" type="file" accept="video/*"/>
+      </div>
+      <div class="file-selector">
+        <div class="file-label">Event File</div>
+        <div id="event-select-button" class="file-name">-</div>
+        <input id="event-file-input" class="file-input" type="file" accept="application/json"/>
+      </div>
+      <button id="load-button" class="button">Load</button>
+    </div>
+  </div>
+  <div id="video-view">
+    <video id="video" controls></video>
+    <div id="event-timeline-canvas"></div>
+    <div id="selected-event-details">-</div>
+  </div>
+</body>
+
+</html>

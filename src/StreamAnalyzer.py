@@ -1,10 +1,16 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from framework import BaseStreamAnalyzer
+
 from ultralytics import YOLO
 from util.RectTracker import RectTracker
 
-class StreamAnalyzer:
+class StreamAnalyzer(BaseStreamAnalyzer):
   model = None
   rectTracker = None
   time_series_rect_data = []
+  event_counter = 0
 
   def __init__(self):
     pass
@@ -35,7 +41,18 @@ class StreamAnalyzer:
     #   "disappeared": disappeared_rects
     # })
 
-    return list(map( lambda rect: [rect.x, rect.y, rect.w, rect.h], appeared_rects))
+    for rect in appeared_rects:
+      self.detect_event(time_ms, {
+        "event_index": self.event_counter,
+        "type": "person_appeared",
+        "labels": ["person"],
+        "picture": frame[rect.y:rect.y+rect.h, rect.x:rect.x+rect.w],
+        "geometry_config_ids": [],
+        "data": {
+          "rect": [rect.x, rect.y, rect.w, rect.h]
+        }
+      })
+      self.event_counter += 1
 
   def close(self):
     pass

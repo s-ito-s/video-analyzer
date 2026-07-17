@@ -94,14 +94,22 @@ class AnalysisResultWindow:
   def event_marker_selected_callback(self, marker_id):
     for item in self.result:
       time_ms = item["time_ms"]
-      bboxes = item["bboxes"]
+      data = item["data"]
       if time_ms == marker_id:
-        self.result_view.set_data(item)        
+        self.result_view.set_data({
+          "time_ms": time_ms,
+          "event_index": data["event_index"],
+          "type": data["type"],
+          "labels": data["labels"],
+          "geometry_config_ids": data["geometry_config_ids"],
+          "data": data["data"],
+        })        
         frame_number = (self.start_time_ms + time_ms) / 1000 * self.video.get(cv2.CAP_PROP_FPS)
         self.video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-        ret, frame = self.video.read()
-        if ret:
-          for bbox in bboxes:
-            x, y, w, h = bbox
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 4)
-            self.analysis_result_image.set_image(frame)
+        self.analysis_result_image.set_image(data["picture"])
+        # ret, frame = self.video.read()
+        # if ret:
+        #   bbox = data["data"]["rect"]
+        #   x, y, w, h = bbox
+        #   cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 4)
+        #   self.analysis_result_image.set_image(frame)
